@@ -2,6 +2,7 @@ import datetime
 import os
 
 from dotenv import load_dotenv
+from bot.Database import database as db
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
@@ -10,6 +11,15 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+
+import bot
+from bot import ai_helper
+from bot.utils import email_to_send
+from bot.utils import brainstorm
+from bot.utils import text_to_speech_impl
+from bot.utils import translate_english
+from bot.utils import doc_summary
+
 (
     SELECTING,
     SUMMARIZE_PAPER,
@@ -77,19 +87,115 @@ async def summarize_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
     filename = update.message.document.file_name.strip()
     new_file = await context.bot.get_file(file_id)
     await new_file.download_to_drive(filename)
-
+    text_to_send = await bot.utils.doc_summary.text_from_file(
+        filename, update, context
+    )
+    if text_to_send.split(":")[0]=="err":
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Эх что-то пошло не так: "
+        )
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text=text_to_send[1]
+        )
+    else:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Вот ваши суммари: "
+        )
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text_to_send, parse_mode="MarkdownV2")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Подождите 30 секудн чтобы получить аудио суммари ",
+        )
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text="Вот ваши аудио-суммари: "
+        )
+        summary_file = open(f"{filename}.txt", "w+")
+        summary_file.write(text_to_send)
+        summary_file.close()
+        await text_to_speech(f"{filename}.txt", update=update, context=context)
 
 
 async def brainstorm_a_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
+    if update.message.text.startswith("email:"):
+        if db.checking_user_exits(update.effective_user.id):
+
+            if db.checking_user_email_exits(user_id=update.effective_user.id) == "":
+                email = update.message.text.split(":")[1]
+                userid = update.effective_user.id
+                db.User.update(email=email).where(db.User.userid == userid).execute()
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="получил ваш email: " f"{email}",
+                )
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="Есл хотите получить резултать в данном email",
+                )
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="отправьте текст в формате mail:{что вы хотите}",
+                )
+                print(email)  # email get
+        else:
+            email = update.message.text.split(":")[1]
+            db.User.create(
+                userid=update.effective_user.id,
+                name=update.effective_user.first_name,
+                username=update.effective_user.username,
+                chromacollection="",
+                email=email,
+                usertoken="",
+                gigachat_token="",
+                lastGen=datetime.datetime.now(),
+                last_gen_gigachat=datetime.datetime.now(),
+            )
+    elif update.message.text.startswith("mail:"):
+        if db.checking_user_email_exits(user_id=update.effective_user.id) != "":
+            email = db.User.get(userid=update.effective_user.id).email
+            text_to_find = update.message.text.split(":")[1]
+            text_to_find_enf = await translate_english.translate_text(text_to_find)
+            doc_to_send = await brainstorm.generate_find_the_paper(
+                user_query=text_to_find_enf
+            )
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id, text="чекните ваш mail"
+            )
+            email_to_send.send_mail(email_to=email, texttosend=doc_to_send)
+        else:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id, text="добавь mail"
+            )
+
+    elif update.message.text.startswith("nml:"):
+        text_to_find = update.message.text.split(":")[1]
+        print(text_to_find)
+        text_to_find_enf = await translate_english.translate_text(text_to_find)
+        doc = await brainstorm.generate_find_the_paper(user_query=text_to_find_enf)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=doc)
+    else:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id, text="nml: , email: , mail:"
+        )
 
 
 async def text_to_speech(Filename, update: Update, context: ContextTypes.DEFAULT_TYPE):
-   pass
+    Data = await text_to_speech_impl.text_to_speech_impl(
+        filename=Filename,
+        update=update,
+        context=context,
+        SALUTE_AUTH_DATA=SALUTE_AUTH_DATA,
+        SALUTE_SCOPE=SALUTE_SCOPE,
+    )
+    await context.bot.send_audio(chat_id=update.effective_chat.id, audio=Data)
 
 
 async def ask_ai(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pass
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text="Найду и расскажу:"
+    )
+    text = update.message.text
+    result = await ai_helper.ai_help(text)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=result)
 
 
 async def end(update: Update, context: ContextTypes.DEFAULT_TYPE):
