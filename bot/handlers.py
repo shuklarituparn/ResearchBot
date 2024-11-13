@@ -98,9 +98,9 @@ async def summarize_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=update.effective_chat.id, text=text_to_send[1]
         )
     else:
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="Вот ваши суммари: "
-        )
+        # await context.bot.send_message(
+        #     chat_id=update.effective_chat.id, text="Вот ваши суммари: "
+        # )
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text_to_send, parse_mode="MarkdownV2")
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -118,7 +118,6 @@ async def summarize_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def brainstorm_a_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text.startswith("email:"):
         if db.checking_user_exits(update.effective_user.id):
-
             if db.checking_user_email_exits(user_id=update.effective_user.id) == "":
                 email = update.message.text.split(":")[1]
                 userid = update.effective_user.id

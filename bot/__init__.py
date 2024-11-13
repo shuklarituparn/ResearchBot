@@ -20,3 +20,4 @@ def initialize_the_bot():
         .build()
     )
     return application
+
