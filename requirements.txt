@@ -15,3 +15,4 @@ ollama~=0.3.3
 langchain-community~=0.0.38
 langchain-core~=0.1.52
 resend~=0.8.0
+langchain-text-splitters~=0.0.2

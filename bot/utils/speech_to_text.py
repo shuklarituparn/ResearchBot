@@ -150,3 +150,6 @@ async def get_the_text(fileId, Token):  # Now to get the task done
     text = await text_from_file(f)
     print(text)
     return str(response.json()[0]["results"][0]["text"])
+
+
+# TODO: Antiplagiarism detection? Sending result to email? RAG Pipeline?

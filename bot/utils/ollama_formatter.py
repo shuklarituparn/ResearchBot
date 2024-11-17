@@ -8,7 +8,7 @@ client = AsyncClient(host='http://localhost:11434/')
 async def ollama_summarizer(input :str)->str:
     message={
         "role":"user",
-        "content":f"Summarize this text and explain in russian language- {input}"
+        "content":f"Summarize this text in russian language- {input}"
     }
     response=await AsyncClient().chat(model="llama3", messages=[message])
     content=response["message"]["content"]
