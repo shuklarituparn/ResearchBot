@@ -43,10 +43,3 @@ async def text_from_file(filename):
         "Cудя по тексту, краткое описание выглядит следующим образом:" + summary_text
     )
     return summary
-
-
-#
-# if __name__=="__main__":
-#     async def get_text():
-#         data=await text_from_file("response.json")
-#         print(data)

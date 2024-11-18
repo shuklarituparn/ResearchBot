@@ -1,12 +1,13 @@
 import datetime
 import os
+from fnmatch import translate
 from pathlib import Path
 
 
 import bot
 from bot import ai_helper
 from bot.utils import email_to_send
-from bot.utils.rag import query_rag
+from bot.utils import translate
 from bot.utils import rag
 from bot.utils import document_chunker
 from bot.utils import brainstorm
@@ -186,6 +187,13 @@ async def brainstorm_a_paper(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
 
+async def send_long_message(context, chat_id, text):
+    """Send a long message by splitting it into chunks."""
+    MAX_MESSAGE_LENGTH = 4096
+    for i in range(0, len(text), MAX_MESSAGE_LENGTH):
+        await context.bot.send_message(chat_id=chat_id, text=text[i:i + MAX_MESSAGE_LENGTH])
+
+
 async def discuss_a_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bot_root = Path(__file__).parent.parent
     try:
@@ -203,7 +211,6 @@ async def discuss_a_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.message.text is None:
             file_id = update.message.document.file_id
             filename = update.message.document.file_name.strip()
-            # Convert the PosixPath to string when combining with filename
             file_path = str(pdf_dir / filename)
             new_file = await context.bot.get_file(file_id)
             await new_file.download_to_drive(file_path)
@@ -212,7 +219,7 @@ async def discuss_a_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text="Документы загружены! отправь еще если хочешь!"
             )
         elif update.message.text.startswith("ask:"):
-            documents = await document_loader.load_data(str(pdf_dir))  # Convert path to string
+            documents = await document_loader.load_data(str(pdf_dir))
             chunk = await document_chunker.split_the_documents(documents)
             chroma_path = bot_root / "chromadb"
             if not chroma_path.exists():
@@ -226,9 +233,12 @@ async def discuss_a_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     return
 
             await save_to_chroma(chunk, str(chroma_path))  # Convert path to string
-            query_text = update.message.text.split(":", 1)[1].strip()  # Use maxsplit=1 and strip()
-            response = await rag.query_rag(query_text, str(chroma_path))  # Convert path to string
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+            query_text = update.message.text.split(":", 1)[1].strip()
+            query_text_english= await translate_english.translate_text(query_text)
+            result, response = await rag.query_rag(query_text_english, str(chroma_path))
+            print(f"response from the llm:{response}" )
+            translated_response= await bot.utils.translate.translate_text(response)
+            await send_long_message(context, update.effective_chat.id, translated_response)
 
     except Exception as e:
         error_message = f"Error processing file: {str(e)}"
@@ -238,12 +248,6 @@ async def discuss_a_paper(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=error_message
         )
         return None
-
-    # TODO: File is downloaded, convert to vector store
-    # TODO: Can split the user text and then do the thing if he asks by "ask:"
-
-
-
 
 async def text_to_speech(Filename, update: Update, context: ContextTypes.DEFAULT_TYPE):
     Data = await text_to_speech_impl.text_to_speech_impl(

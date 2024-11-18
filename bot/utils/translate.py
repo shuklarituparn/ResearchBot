@@ -12,7 +12,6 @@ GIGACHAT_CREDENTIALS = os.getenv("GIGACHAT_API_AUTH")
 
 async def translate_text(content):
     chat = GigaChat(credentials=GIGACHAT_CREDENTIALS, verify_ssl_certs=False)
-
     messages = [
         SystemMessage(
             content="Вы действительно хороший переводчик, переведите следующий текст на русском языке с правильным форматированием \n"
