@@ -1,9 +1,10 @@
 import os
 
-from playhouse.postgres_ext import *
+from peewee import DoesNotExist, Model, BigIntegerField, TextField, CharField, DateTimeField
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import psycopg2
+from playhouse.postgres_ext import PostgresqlExtDatabase
 
 load_dotenv()
 Database_name = os.getenv("DATABASE_NAME")

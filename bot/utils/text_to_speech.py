@@ -21,6 +21,7 @@ def gen_new_token(AUTH_DATA, API_SCOPE) -> str:  # returning the token
     data = {"scope": f"{scope}"}
     url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
     response = requests.post(url=url, headers=headers, data=data, verify=False)
+    print(response.json())
     token = response.json()["access_token"]
     return token
 
